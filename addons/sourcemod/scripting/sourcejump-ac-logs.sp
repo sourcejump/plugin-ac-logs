@@ -8,12 +8,10 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#define URL "https://sourcejump.net"
-#define ENDPOINT "ac/log"
+#define URL "https://sourcejump.net/ac/log"
 
 ConVar gCV_APIKey;
 StringMap gSM_GameInfo;
-HTTPClient gH_HTTPClient;
 
 public Plugin myinfo =
 {
@@ -30,21 +28,6 @@ public void OnPluginStart()
 	AutoExecConfig();
 
 	gSM_GameInfo = new StringMap();
-	gH_HTTPClient = new HTTPClient(URL);
-}
-
-public void OnConfigsExecuted()
-{
-	char apiKey[64];
-	gCV_APIKey.GetString(apiKey, sizeof(apiKey));
-
-	if (apiKey[0] == '\0')
-	{
-		LogError("SourceJump Anti-Cheat Logs API key is not set.");
-		return;
-	}
-
-	gH_HTTPClient.SetHeader("api-key", apiKey);
 }
 
 public int SteamWorks_OnValidateClient(int ownerauthid, int authid)
@@ -95,9 +78,25 @@ public void Bash_OnDetection(int client, char[] buffer)
 	json.SetString("game-owner", ownerSteamID);
 	json.SetString("message", buffer);
 
-	gH_HTTPClient.Post(ENDPOINT, json, OnDetectionSent);
+	SendDetection(json);
 
 	delete json;
+}
+
+void SendDetection(JSONObject json)
+{
+	char apiKey[64];
+	gCV_APIKey.GetString(apiKey, sizeof(apiKey));
+
+	if (apiKey[0] == '\0')
+	{
+		LogError("SourceJump Anti-Cheat Logs API key is not set.");
+		return;
+	}
+
+	HTTPRequest request = new HTTPRequest(URL);
+	request.SetHeader("api-key", apiKey);
+	request.Post(json, OnDetectionSent);
 }
 
 public void OnDetectionSent(HTTPResponse response, any value, const char[] error)
