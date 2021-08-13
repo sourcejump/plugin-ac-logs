@@ -1,10 +1,9 @@
 #include <sourcemod>
 
+#include <bash2>
+
 #include <ripext>
 #include <SteamWorks>
-
-#undef REQUIRE_PLUGIN
-#include <bash2>
 
 #pragma newdecls required
 #pragma semicolon 1
