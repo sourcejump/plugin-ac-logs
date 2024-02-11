@@ -1,8 +1,5 @@
-#include <sourcemod>
-
 #include <bash2>
-
-#include <ripext>
+#include <json>
 #include <SteamWorks>
 
 #pragma newdecls required
@@ -30,20 +27,20 @@ public void OnPluginStart()
 	gSM_GameInfo = new StringMap();
 }
 
-public int SteamWorks_OnValidateClient(int ownerauthid, int authid)
+public void SteamWorks_OnValidateClient(int ownerAuthID, int authID)
 {
 	bool familyShared = false;
 
-	if (ownerauthid != authid)
+	if (ownerAuthID != authID)
 	{
 		familyShared = true;
 	}
 
 	char steamID[32];
-	Format(steamID, sizeof(steamID), "[U:1:%d]", authid);
+	Format(steamID, sizeof(steamID), "[U:1:%d]", authID);
 
 	char ownerSteamID[32];
-	Format(ownerSteamID, sizeof(ownerSteamID), "[U:1:%d]", ownerauthid);
+	Format(ownerSteamID, sizeof(ownerSteamID), "[U:1:%d]", ownerAuthID);
 
 	gSM_GameInfo.SetValue(steamID, familyShared);
 	gSM_GameInfo.SetString(steamID, ownerSteamID);
@@ -69,7 +66,7 @@ public void Bash_OnDetection(int client, char[] buffer)
 	char ownerSteamID[32];
 	gSM_GameInfo.GetString(steamID, ownerSteamID, sizeof(ownerSteamID));
 
-	JSONObject json = new JSONObject();
+	JSON_Object json = new JSON_Object();
 	json.SetString("map", map);
 	json.SetString("player", name);
 	json.SetString("steamid", steamID);
@@ -83,7 +80,7 @@ public void Bash_OnDetection(int client, char[] buffer)
 	delete json;
 }
 
-void SendDetection(JSONObject json)
+void SendDetection(JSON_Object json)
 {
 	char apiKey[64];
 	gCV_APIKey.GetString(apiKey, sizeof(apiKey));
@@ -94,15 +91,23 @@ void SendDetection(JSONObject json)
 		return;
 	}
 
-	HTTPRequest request = new HTTPRequest(URL);
-	request.SetHeader("api-key", apiKey);
-	request.Post(json, OnDetectionSent);
+	char body[2048];
+	json.Encode(body, sizeof(body));
+
+	Handle request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodPOST, URL);
+	SteamWorks_SetHTTPRequestHeaderValue(request, "api-key", apiKey);
+	SteamWorks_SetHTTPRequestRawPostBody(request, "application/json", body, strlen(body));
+	SteamWorks_SetHTTPRequestAbsoluteTimeoutMS(request, 15000);
+	SteamWorks_SetHTTPCallbacks(request, OnDetectionSent);
+	SteamWorks_SendHTTPRequest(request);
 }
 
-public void OnDetectionSent(HTTPResponse response, any value, const char[] error)
+public void OnDetectionSent(Handle request, bool failure, bool requestSuccessful, EHTTPStatusCode statusCode, DataPack pack)
 {
-	if (response.Status != HTTPStatus_Created)
+	if (failure || !requestSuccessful || statusCode != k_EHTTPStatusCode204NoContent)
 	{
-		LogError("Failed to send anti-cheat detection to the SourceJump database. Response status: %d.", response.Status);
+		LogError("Failed to send anti-cheat detection to the SourceJump database. Response status: %d.", statusCode);
 	}
+
+	delete request;
 }
