@@ -15,7 +15,7 @@ public Plugin myinfo =
 	name = "SourceJump Anti-Cheat Logs",
 	author = "Eric",
 	description = "Sends anti-cheat detections to the SourceJump database.",
-	version = "1.0.0",
+	version = "1.1.0",
 	url = "https://steamcommunity.com/id/-eric"
 };
 
